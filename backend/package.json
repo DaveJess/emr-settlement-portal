@@ -8,12 +8,19 @@
     "start": "tsx src/index.ts",
     "build": "tsc"
   },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@types/node": "^26.6.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "mongodb": "^7.7.0"
   }
 }
