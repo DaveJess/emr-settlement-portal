@@ -6,6 +6,7 @@ export interface EmrFilters { facilityIds: string[]; cashierId?: string; date?: 
 async function log(actorId: string, record: EmrRecord, action: string, createdAt: string): Promise<void> {
   await (await getDatabase()).collection("activityLogs").insertOne({ id: randomUUID(), actorId, facilityId: record.facilityId, action, entityType: "emr", entityId: record.id, createdAt });
 }
+
 export const emrRepository = {
   async list(filters: EmrFilters): Promise<EmrRecord[]> {
     if (!filters.facilityIds.length) return [];
@@ -16,6 +17,7 @@ export const emrRepository = {
     if (filters.remark === "Check Record") query.$expr = { $or: [{ $ne: ["$emr.numberOfTransactions", "$tap.numberOfTransactions"] }, { $ne: ["$emr.amountForDay", "$tap.amountForDay"] }] };
     return (await (await getDatabase()).collection<EmrRecord>("emrRecords").find(query, { projection: { _id: 0 } }).sort({ date: -1, createdAt: -1 }).toArray());
   },
+
   async findById(id: string): Promise<EmrRecord | null> { return (await getDatabase()).collection<EmrRecord>("emrRecords").findOne({ id }, { projection: { _id: 0 } }); },
   async findByCashierAndDate(cashierId: string, date: string): Promise<EmrRecord | null> { return (await getDatabase()).collection<EmrRecord>("emrRecords").findOne({ cashierId, date }, { projection: { _id: 0 } }); },
   async insert(record: EmrRecord, actorId: string): Promise<void> { await (await getDatabase()).collection<EmrRecord>("emrRecords").insertOne(record); await log(actorId, record, "Submitted EMR record.", record.createdAt); },

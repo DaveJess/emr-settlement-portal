@@ -72,3 +72,5 @@ EMR submissions allow one record per cashier per date and reject future dates. C
 - `src/http/server.ts` exposes the HTTP API and applies request, session, role, and scope checks.
 
 Use your MongoDB deployment's backup and access controls. Unique indexes protect normalized emails, facility names, and one EMR record per cashier per date.
+
+For an isolated Identity workflow walkthrough and API checks, see [`IDENTITY_E2E_GUIDE.md`](IDENTITY_E2E_GUIDE.md). The guide uses a disposable MongoDB database and documents cleanup.

@@ -4,28 +4,14 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useApp } from "../hooks/useApp";
 import { ROLE_HOME } from "../utils/roles";
 
-const demoAccounts = [
-  {
-    label: "Finance",
-    email: "finance@lunar.demo",
-  },
-  {
-    label: "Facility Manager",
-    email: "manager@lunar.demo",
-  },
-  {
-    label: "Cashier",
-    email: "cashier@lunar.demo",
-  },
-];
-
 export default function LoginPage() {
-  const { currentUser, login } = useApp();
+  const { currentUser, identityLoading, login } = useApp();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   if (currentUser) {
     return (
@@ -33,14 +19,17 @@ export default function LoginPage() {
     );
   }
 
-  function signIn(
+  if (identityLoading) return <p className="p-8 text-center">Restoring sign-in…</p>;
+
+  async function signIn(
     selectedEmail: string,
     selectedPassword: string,
-  ): void {
+  ): Promise<void> {
     setError("");
+    setSubmitting(true);
 
     try {
-      const user = login(selectedEmail, selectedPassword);
+      const user = await login(selectedEmail, selectedPassword);
 
       navigate(ROLE_HOME[user.role], {
         replace: true,
@@ -51,6 +40,8 @@ export default function LoginPage() {
           ? err.message
           : "Unable to sign in. Please try again.",
       );
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -102,7 +93,7 @@ export default function LoginPage() {
             className="mt-8 space-y-5"
             onSubmit={(event) => {
               event.preventDefault();
-              signIn(email, password);
+              void signIn(email, password);
             }}
           >
             <div>
@@ -159,46 +150,17 @@ export default function LoginPage() {
 
             <button
               type="submit"
+              disabled={submitting}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-lunar-primary px-4 py-3 font-medium text-white hover:bg-lunar-primary-dark"
             >
-              Sign in
+              {submitting ? "Signing in…" : "Sign in"}
               <ArrowRight size={18} />
             </button>
           </form>
 
-          <div className="mt-8 rounded-xl border border-lunar-border bg-white p-5">
-            <h3 className="font-semibold">
-              Explore the demo portals
-            </h3>
-
-            <p className="mt-2 text-sm text-lunar-muted">
-              Each portal uses the same data in this browser.
-            </p>
-
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              {demoAccounts.map((account) => (
-                <button
-                  key={account.email}
-                  type="button"
-                  onClick={() =>
-                    signIn(account.email, "Lunar123!")
-                  }
-                  className="rounded-lg border border-lunar-border px-3 py-3 text-xs font-medium text-lunar-primary hover:bg-emerald-50"
-                >
-                  {account.label}
-                </button>
-              ))}
-            </div>
-
-            <p className="mt-4 text-xs text-lunar-muted">
-              Demo password: Lunar123!
-            </p>
-          </div>
-
           <p className="mt-5 text-xs leading-relaxed text-lunar-muted">
-            Cashier accounts are created by Finance. This
-            prototype uses browser-local data and demo login
-            credentials.
+            Sign-in is verified by the EMR backend. Cashier
+            accounts are provisioned by Finance.
           </p>
         </div>
       </section>

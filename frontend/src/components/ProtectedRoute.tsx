@@ -10,7 +10,9 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({
   allowedRoles,
 }: ProtectedRouteProps) {
-  const { currentUser } = useApp();
+  const { currentUser, identityLoading } = useApp();
+
+  if (identityLoading) return <p className="p-8 text-center">Restoring sign-in…</p>;
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;

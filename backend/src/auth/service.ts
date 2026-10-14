@@ -64,7 +64,7 @@ export async function signOut(tokenHash: string): Promise<void> {
 export async function bootstrapFinance(input: CreateUserInput): Promise<User> {
   if (input.role !== "finance") throw new AppError(400, "Bootstrap can only create the first Finance user.");
   if (await userRepository.countByRole("finance") > 0) throw new AppError(409, "Finance bootstrap is already complete.");
-  // The repository rechecks bootstrap eligibility in the same write transaction.
+  // The repository rechecks bootstrap eligibility immediately before inserting.
   return await createBootstrapFinanceUser(input);
 }
 

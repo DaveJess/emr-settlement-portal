@@ -10,7 +10,7 @@ The app is a browser-based hospital accounting prototype. It provides three work
 - **Facility Manager** reviews EMR and daily account submissions and issues cashier top-ups for assigned hospitals.
 - **Cashier** records EMR and TAP totals, acknowledges top-ups, and submits a daily wallet account.
 
-The three roles use the same browser-local dataset, with pages and actions filtered or guarded by role and hospital assignment.
+Identity is served by the backend: MongoDB is the source of truth for users, roles, account status, facility assignments, and sign-in sessions. The accounting pages still use the browser-local dataset; their API migration is separate work.
 
 ## Start and build
 
@@ -31,17 +31,11 @@ npm run lint     # Oxlint
 
 The frontend uses React, TypeScript, React Router, Vite, Tailwind CSS, and Lucide icons. `src/main.tsx` mounts the app and global styles; `vite.config.ts` configures Vite and its plugins.
 
-## Sign-in and demo accounts
+## Sign-in and identity setup
 
-The sign-in page is `src/pages/LoginPage.tsx`. It supports email/password login and buttons for the seeded demo accounts. Each seeded account uses password `Lunar123!`:
+The sign-in page is `src/pages/LoginPage.tsx`. It posts credentials to `POST /api/auth/login`, keeps the returned opaque session token in `sessionStorage`, and restores the session through the backend on reload. Finance must first be created through the backend bootstrap endpoint; Finance then creates cashier accounts from the Cashiers page. There are no working browser-only demo credentials.
 
-| Role | Email | Home route |
-| --- | --- | --- |
-| Finance | `finance@lunar.demo` | `/finance` |
-| Facility Manager | `manager@lunar.demo` | `/facility-manager` |
-| Cashier | `cashier@lunar.demo` | `/cashier` |
-
-Demo users and hospitals are defined in `src/data/demoData.ts`. If no app data is saved in the browser yet, the app creates this initial dataset.
+For local development, start the backend on port 4000 and the frontend Vite server. Vite proxies `/api` requests to the backend. Set up MongoDB, `API_ADMIN_TOKEN`, the first Finance user, and facilities using the instructions in [`../backend/README.md`](../backend/README.md).
 
 ## How the app is structured
 
@@ -53,6 +47,7 @@ src/
     AppContext.ts          Shared app state contract
     AppProvider.tsx        Loads state, login/logout, persists updates
   hooks/useApp.ts          Convenient, checked access to shared state
+  api/identity.ts          Backend sign-in, session, and cashier API calls
   components/
     ProtectedRoute.tsx     Requires a signed-in user with an allowed role
   layouts/DashboardLayout.tsx  Sidebar, role navigation, page outlet
@@ -60,7 +55,7 @@ src/
   utils/                   Browser storage, role mapping, permissions, calculations,
                            and workflow operations
   types/index.ts           Shared TypeScript data model
-  data/demoData.ts         Initial demo hospitals, users, and empty records
+  data/demoData.ts         Initial local accounting data and empty records
 ```
 
 ### Starting point and routing
@@ -71,16 +66,16 @@ src/
 
 ### Shared state and persistence
 
-`AppProvider` owns `AppData` and the current user. Pages call `useApp()` to read `data` and `currentUser`, sign in/out, or make a data update. For an update, the provider clones the existing dataset, applies the page's updater, saves the result, and only then publishes it to React state.
+`AppProvider` owns the local accounting `AppData` and current signed-in identity. It loads the current user, scoped users, and assigned facilities from the backend. Finance's cashier creation, status changes, and facility assignment changes are API requests; a successful operation refreshes the scoped Identity data.
 
 `src/utils/storage.ts` stores:
 
 - The full dataset in `localStorage` under `lunar_accounting_data_v1`.
-- The signed-in user's ID in `sessionStorage` under `lunar_accounting_session_v1`.
+- The backend-issued session token in `sessionStorage` under `lunar_accounting_session_v1`.
 
-Data remains in that browser profile across reloads; the login session lasts for the browser tab session. Clearing the app's site storage removes the demo data and starts it over from `createDemoData()` on the next load.
+Local accounting data remains in that browser profile across reloads; the backend login session lasts for the browser tab session. Clearing site storage removes the local accounting cache and initializes an empty one.
 
-**Prototype limitation:** this frontend currently authenticates against browser-stored user records, and user passwords are included in that data. It does not call a server API for authentication, authorization, or persistence. Browser-side role checks are useful for the prototype UI but are not a security boundary for production. The backend directory is separate; this guide describes the frontend behavior only.
+The browser cache is not the authority for Identity; protected backend requests validate sessions and enforce role/facility rules. Old cached demo passwords are stripped when the app loads. EMR, top-up, and daily-account screens still use local browser operations and are not yet connected to their corresponding backend workflows. Client-side route checks only control navigation and are not a security boundary.
 
 ## Pages and workflows
 

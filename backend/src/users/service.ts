@@ -5,7 +5,7 @@ import { hashPassword, validatePassword } from "../auth/password";
 import { facilityRepository } from "../repository/facilityRepository";
 import { userRepository } from "../repository/userRepository";
 import { assertFacilityAccess, assertUserAccess, assertUserManagementScope, requireRole, scopeUserToActor } from "../auth/authorization";
-import { AppError } from "../errors";
+import { AppError, isConflictError } from "../errors";
 
 function requiredText(value: unknown, label: string, max: number): string {
   if (typeof value !== "string") throw new AppError(400, `${label} is required.`);
@@ -166,5 +166,5 @@ export async function updateUserFacilities(id: string, value: unknown): Promise<
 }
 
 function isConstraintError(error: unknown): boolean {
-  return error instanceof Error && /constraint|unique/i.test(error.message);
+  return isConflictError(error);
 }

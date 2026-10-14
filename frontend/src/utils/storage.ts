@@ -41,6 +41,11 @@ export function loadAppData(): AppData {
       );
     }
 
+    // Older demo builds stored plaintext passwords. Strip them from the browser cache.
+    for (const user of parsed.users) {
+      delete (user as typeof user & { password?: string }).password;
+    }
+    saveAppData(parsed);
     return parsed;
   }
 
@@ -51,15 +56,19 @@ export function loadAppData(): AppData {
 }
 
 export function saveAppData(data: AppData): void {
-  localStorage.setItem(DATA_KEY, JSON.stringify(data));
+  const safeData = structuredClone(data);
+  for (const user of safeData.users) {
+    delete (user as typeof user & { password?: string }).password;
+  }
+  localStorage.setItem(DATA_KEY, JSON.stringify(safeData));
 }
 
 export function loadSession(): string | null {
   return sessionStorage.getItem(SESSION_KEY);
 }
 
-export function saveSession(userId: string): void {
-  sessionStorage.setItem(SESSION_KEY, userId);
+export function saveSession(token: string): void {
+  sessionStorage.setItem(SESSION_KEY, token);
 }
 
 export function clearSession(): void {

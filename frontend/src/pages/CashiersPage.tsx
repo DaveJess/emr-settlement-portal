@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { useApp } from "../hooks/useApp";
-import type {
-  ActivityLog,
-  User,
-} from "../types";
+import type { User } from "../types";
 
 interface CashierForm {
   name: string;
@@ -16,7 +13,7 @@ interface CashierForm {
 }
 
 export default function CashiersPage() {
-  const { data, currentUser, updateData } = useApp();
+  const { data, currentUser, createCashier: createCashierApi, setUserStatus, setUserFacilities } = useApp();
 
   const [search, setSearch] = useState("");
   const [hospitalFilter, setHospitalFilter] = useState("");
@@ -94,22 +91,6 @@ export default function CashiersPage() {
     );
   }
 
-  function makeLog(
-    action: string,
-    cashierId: string,
-    hospitalId: string,
-  ): ActivityLog {
-    return {
-      id: crypto.randomUUID(),
-      actorId: actor.id,
-      hospitalId,
-      action,
-      entityType: "user",
-      entityId: cashierId,
-      createdAt: new Date().toISOString(),
-    };
-  }
-
   function openCreateForm() {
     setError("");
     setMessage("");
@@ -126,7 +107,7 @@ export default function CashiersPage() {
     setShowCreateForm(true);
   }
 
-  function createCashier() {
+  async function createCashier() {
     setError("");
     setMessage("");
 
@@ -154,8 +135,8 @@ export default function CashiersPage() {
       return;
     }
 
-    if (form.password.length < 8) {
-      setError("Password must contain at least 8 characters.");
+    if (form.password.length < 12 || form.password.length > 128) {
+      setError("Password must contain 12 to 128 characters.");
       return;
     }
 
@@ -173,44 +154,8 @@ export default function CashiersPage() {
       return;
     }
 
-    const cashier: User = {
-      id: crypto.randomUUID(),
-      name,
-      phone,
-      email,
-      password: form.password,
-      role: "cashier",
-      status: "active",
-      hospitalIds: [form.hospitalId],
-      createdBy: actor.id,
-      createdAt: new Date().toISOString(),
-    };
-
     try {
-      updateData((current) => {
-        if (
-          current.users.some(
-            (user) =>
-              user.email.toLowerCase() === email,
-          )
-        ) {
-          throw new Error(
-            "An account already uses this email address.",
-          );
-        }
-
-        current.users.push(cashier);
-
-        current.activityLogs.unshift(
-          makeLog(
-            `Created cashier account for ${cashier.name}.`,
-            cashier.id,
-            form.hospitalId,
-          ),
-        );
-
-        return current;
-      });
+      const cashier = await createCashierApi({ name, phone, email, password: form.password, facilityIds: [form.hospitalId] });
 
       setShowCreateForm(false);
       setMessage(
@@ -225,7 +170,7 @@ export default function CashiersPage() {
     }
   }
 
-  function changeAccountStatus(cashier: User) {
+  async function changeAccountStatus(cashier: User) {
     setError("");
     setMessage("");
 
@@ -253,37 +198,7 @@ export default function CashiersPage() {
     }
 
     try {
-      updateData((current) => {
-        const account = current.users.find(
-          (user) => user.id === cashier.id,
-        );
-
-        if (!account) {
-          throw new Error("Cashier account was not found.");
-        }
-
-        if (
-          !account.hospitalIds.some((id) =>
-            actor.hospitalIds.includes(id),
-          )
-        ) {
-          throw new Error(
-            "This cashier is outside your assigned hospitals.",
-          );
-        }
-
-        account.status = nextStatus;
-
-        current.activityLogs.unshift(
-          makeLog(
-            `${action}d cashier account for ${account.name}.`,
-            account.id,
-            account.hospitalIds[0],
-          ),
-        );
-
-        return current;
-      });
+      await setUserStatus(cashier.id, nextStatus);
 
       setMessage(
         `${cashier.name}'s account is now ${nextStatus}.`,
@@ -304,7 +219,7 @@ export default function CashiersPage() {
     setAssignmentHospitalId(cashier.hospitalIds[0] ?? "");
   }
 
-  function saveAssignment() {
+  async function saveAssignment() {
     setError("");
     setMessage("");
 
@@ -324,67 +239,7 @@ export default function CashiersPage() {
     }
 
     try {
-      updateData((current) => {
-        const cashier = current.users.find(
-          (user) => user.id === assignmentCashierId,
-        );
-
-        if (!cashier || cashier.role !== "cashier") {
-          throw new Error("Cashier account was not found.");
-        }
-
-        if (
-          !cashier.hospitalIds.some((id) =>
-            actor.hospitalIds.includes(id),
-          )
-        ) {
-          throw new Error(
-            "This cashier is outside your assigned hospitals.",
-          );
-        }
-
-        if (
-          cashier.hospitalIds[0] === assignmentHospitalId
-        ) {
-          throw new Error(
-            "The cashier is already assigned to this hospital.",
-          );
-        }
-
-        // Keep existing financial records attached to their
-        // original hospital. Moving an account with wallet
-        // activity requires a transfer workflow later.
-        const hasWalletActivity =
-          current.topUps.some(
-            (topUp) => topUp.cashierId === cashier.id,
-          ) ||
-          current.dailyAccounts.some(
-            (account) => account.cashierId === cashier.id,
-          );
-
-        if (hasWalletActivity) {
-          throw new Error(
-            "This cashier has wallet activity. A hospital transfer must settle the existing wallet first.",
-          );
-        }
-
-        const previousHospitalId =
-          cashier.hospitalIds[0];
-
-        cashier.hospitalIds = [assignmentHospitalId];
-
-        current.activityLogs.unshift(
-          makeLog(
-            `Moved ${cashier.name} from ${hospitalName(
-              previousHospitalId,
-            )} to ${hospitalName(assignmentHospitalId)}.`,
-            cashier.id,
-            assignmentHospitalId,
-          ),
-        );
-
-        return current;
-      });
+      await setUserFacilities(assignmentCashierId, [assignmentHospitalId]);
 
       setAssignmentCashierId(null);
       setMessage("Cashier hospital assignment updated.");
@@ -698,7 +553,7 @@ export default function CashiersPage() {
                 <input
                   required
                   type="password"
-                  minLength={8}
+                  minLength={12}
                   autoComplete="new-password"
                   value={form.password}
                   onChange={(event) =>
@@ -716,7 +571,7 @@ export default function CashiersPage() {
                 <input
                   required
                   type="password"
-                  minLength={8}
+                  minLength={12}
                   autoComplete="new-password"
                   value={form.confirmPassword}
                   onChange={(event) =>

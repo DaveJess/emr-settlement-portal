@@ -15,13 +15,13 @@ export interface User {
   name: string;
   phone: string;
   email: string;
-  password: string;
   role: UserRole;
   status: AccountStatus;
   hospitalIds: string[];
   supervisedByFinanceIds?: string[];
   createdBy: string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type ReviewStatus =

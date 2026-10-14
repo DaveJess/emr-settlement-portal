@@ -21,7 +21,9 @@ import TopUpPage from "./pages/TopUpPage";
 import { ROLE_HOME } from "./utils/roles";
 
 function HomeRedirect() {
-  const { currentUser } = useApp();
+  const { currentUser, identityLoading } = useApp();
+
+  if (identityLoading) return <p className="p-8 text-center">Restoring sign-in…</p>;
 
   return (
     <Navigate

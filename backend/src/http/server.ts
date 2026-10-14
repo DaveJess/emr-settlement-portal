@@ -1,7 +1,7 @@
 import http from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import type { CreateCashierInput, CreateFacilityInput, CreateUserInput, EmrSubmissionInput } from "../entity";
-import { AppError } from "../errors";
+import { AppError, isConflictError } from "../errors";
 import {
   authorizeFacilityAssignments,
   authorizeUserCreation,
@@ -255,8 +255,7 @@ export function createServer(): http.Server {
         sendJson(response, error.statusCode, { error: error.message });
         return;
       }
-      const message = error instanceof Error ? error.message : "";
-      if (/constraint|unique/i.test(message)) {
+      if (isConflictError(error)) {
         sendJson(response, 409, { error: "The requested record conflicts with an existing record." });
         return;
       }
